@@ -1,0 +1,12 @@
+# mlflow_config.yaml
+
+experiment_name: "billion-row-analysis"
+run_name: "benchmarking"
+tracking_uri: "http://localhost:5000"  # Optional: set if you have a remote tracking server
+metrics:
+  - Library
+  - Load Time (s)
+  - CPU Load (%)
+  - Memory Load (%)
+  - Peak Memory (%)
+  
