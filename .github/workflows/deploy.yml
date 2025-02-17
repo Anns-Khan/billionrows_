@@ -6,12 +6,14 @@ on:
       - main  # Change this if your default branch is different
 
 jobs:
-  Deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch the entire history of the repository
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -24,14 +26,13 @@ jobs:
 
       - name: Configure huggingface-cli
         run: |
-          echo "Hugging Face Token: ${{ secrets.HF_TOKEN }}"
           huggingface-cli login --token ${{ secrets.HF_TOKEN }}
-   
+
       - name: Set up Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-   
+
       - name: Add Hugging Face remote
         run: |
           git remote add huggingface https://huggingface:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/AnnsKhan/billion_row_challenge
@@ -39,8 +40,10 @@ jobs:
       - name: Fetch and reset to main
         run: |
           git fetch huggingface
-          git reset --hard origin/main
-   
+          git reset --hard huggingface/main
+
       - name: Push to Hugging Face Hub
         run: |
+          git add .
+          git commit -m "Deploy to Hugging Face Spaces" || true
           git push huggingface main --force
