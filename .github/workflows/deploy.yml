@@ -40,10 +40,8 @@ jobs:
       - name: Fetch and reset to main
         run: |
           git fetch huggingface
-          git reset --hard huggingface/main
-
+          git reset --hard origin/main
+   
       - name: Push to Hugging Face Hub
         run: |
-          git add .
-          git commit -m "Deploy to Hugging Face Spaces" || true
           git push huggingface main --force
