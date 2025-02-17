@@ -17,6 +17,10 @@ from PIL import Image
 import numpy as np
 import matplotlib
 import wandb
+from datasets import load_dataset
+
+# Load dataset once at the start to avoid redundant requests
+dataset = load_dataset("Chendi/NYC_TAXI_FARE_CLEANED")
 
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 wandb.init(project="billion-row-analysis", name="benchmarking")
@@ -60,24 +64,22 @@ def measure_performance(load_function, *args):
 
 # Data loading functions
 def load_data_python_vectorized():
-    df = pd.read_parquet('data/raw/jan_2024.parquet')
-    
-    # Convert numerical columns to NumPy arrays for vectorized operations
+    df = dataset["train"].to_pandas()
     num_cols = df.select_dtypes(include=['number']).columns
     np_data = {col: df[col].to_numpy() for col in num_cols}
     return np_data
 
 def load_data_pandas():
-    return pd.read_parquet('data/raw/jan_2024.parquet')
+    return dataset["train"].to_pandas()
 
 def load_data_dask():
-    return dd.read_parquet('data/raw/jan_2024.parquet')
+    return dd.from_pandas(dataset["train"].to_pandas(), npartitions=10)
 
 def load_data_polars():
-    return pl.read_parquet('data/raw/jan_2024.parquet')
+    return pl.from_pandas(dataset["train"].to_pandas())
 
 def load_data_duckdb():
-    return duckdb.read_parquet('data/raw/jan_2024.parquet')
+    return duckdb.from_df(dataset["train"].to_pandas())
 
 # Loaders list
 loaders = [
