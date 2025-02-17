@@ -1,0 +1,15 @@
+pandas
+dask
+polars
+duckdb
+tabulate
+psutil
+seaborn
+matplotlib
+modin
+koalas
+wandb
+mlflow
+fastapi
+gradio
+pytest
