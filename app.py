@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib
 import wandb
 
+wandb.login(key=os.getenv("WANDB_API_KEY"))
 wandb.init(project="billion-row-analysis", name="benchmarking")
 
 
