@@ -25,7 +25,7 @@ from datasets import load_dataset
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 wandb.init(project="billion-row-analysis", name="benchmarking")
 dataset = load_dataset("AnnsKhan/jan_2024_nyc", split="train")
-parquet_path = "data/raw/jan_2024.parquet"
+parquet_path = "data/jan_2024.parquet"
 if not os.path.exists(parquet_path):
     dataset.to_pandas().to_parquet(parquet_path)  # Save to disk
 os.environ["MODIN_ENGINE"] = "dask"
