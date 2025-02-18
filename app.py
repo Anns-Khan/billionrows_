@@ -17,17 +17,17 @@ from PIL import Image
 import numpy as np
 import matplotlib
 import wandb
-from datasets import load_dataset
+#from datasets import load_dataset
 
 # Load dataset once at the start to avoid redundant requests
 # dataset = load_dataset("Chendi/NYC_TAXI_FARE_CLEANED")
 
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 wandb.init(project="billion-row-analysis", name="benchmarking")
-dataset = load_dataset("AnnsKhan/jan_2024_nyc", split="train")
+#dataset = load_dataset("AnnsKhan/jan_2024_nyc", split="train")
 parquet_path = "jan_2024.parquet"
-if not os.path.exists(parquet_path):
-    dataset.to_pandas().to_parquet(parquet_path)  # Save to disk
+# if not os.path.exists(parquet_path):
+#     dataset.to_pandas().to_parquet(parquet_path)  # Save to disk
 os.environ["MODIN_ENGINE"] = "dask"
 
 # Initialize FastAPI app
@@ -172,25 +172,36 @@ matplotlib.use("Agg")
 def explore_dataset():
     try:
         df = pd.read_parquet(parquet_path)
-        
+
+        # Convert float64 columns to float32 to reduce memory usage
+        for col in df.select_dtypes(include=['float64']).columns:
+            df[col] = df[col].astype('float32')
+
+        # If dataset is too large, sample 10%
+        if len(df) > 1_000_000:
+            df = df.sample(frac=0.5, random_state=42)
+
+        # Generate dataset summary
         summary = df.describe(include='all').T  
         summary["missing_values"] = df.isnull().sum()
         summary["unique_values"] = df.nunique()
         summary_text = summary.to_markdown()
         
+        # Log dataset summary as text in Weights & Biases
         wandb.log({"Dataset Summary": wandb.Html(summary_text)})
 
-        fig, axes = plt.subplots(3, 2, figsize=(14, 15))  
+        # Prepare for visualization
+        fig, axes = plt.subplots(2, 2, figsize=(16, 10))  
         fig.suptitle("Dataset Overview", fontsize=16)
 
-        # Column Count by Data Type
+        # Plot data type distribution
         data_types = df.dtypes.value_counts()
         sns.barplot(x=data_types.index.astype(str), y=data_types.values, ax=axes[0, 0])
         axes[0, 0].set_title("Column Count by Data Type")
         axes[0, 0].set_ylabel("Count")
         axes[0, 0].set_xlabel("Column Type")
 
-        # Mean Values of Numeric Columns
+        # Plot mean values of numeric columns
         num_cols = df.select_dtypes(include=['number']).columns
         if len(num_cols) > 0:
             mean_values = df[num_cols].mean()
@@ -199,39 +210,40 @@ def explore_dataset():
             axes[0, 1].set_xlabel("Column Name")
             axes[0, 1].tick_params(axis='x', rotation=45)
 
+            # Log mean values to Weights & Biases
             for col, mean_val in mean_values.items():
                 wandb.log({f"Mean Values/{col}": mean_val})
 
-        # Step 1: Correlation Heatmap
+        # Plot histogram for a selected numerical column
         if len(num_cols) > 0:
-            corr_matrix = df[num_cols].corr()
-            sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", ax=axes[1, 0])
-            axes[1, 0].set_title("Correlation Heatmap")
-        
-        # Step 6: Missing Value Heatmap
-        sns.heatmap(df.isnull(), cmap="viridis", cbar=False, ax=axes[1, 1])
-        axes[1, 1].set_title("Missing Value Heatmap")
-        
-        # Step 3: Pairplots for Feature Relationships
-        sns.pairplot(df[num_cols].sample(500), diag_kind='kde')  # Sampling for performance
-        plt.savefig("pairplot.png")
-        
-        # Step 4: Outlier Detection
-        df[num_cols].plot(kind='box', subplots=True, layout=(2, 3), figsize=(14, 10), ax=axes[2, :])
-        axes[2, 0].set_title("Outlier Detection - Boxplots")
-        
+            selected_col = num_cols[0]  # Choose the first numeric column
+            sns.histplot(df[selected_col], bins=30, kde=True, ax=axes[1, 0])
+            axes[1, 0].set_title(f"Distribution of pick-up locations ID")
+            axes[1, 0].set_xlabel(selected_col)
+            axes[1, 0].set_ylabel("Frequency")
+
+        # Plot correlation heatmap
+        if len(num_cols) > 1:
+            corr = df[num_cols].corr()
+            sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=axes[1, 1])
+            axes[1, 1].set_title("Correlation Heatmap")
+
+        # Save figure to buffer
         buf = io.BytesIO()
         plt.tight_layout()
         plt.savefig(buf, format='png', bbox_inches='tight')
         plt.close(fig)
         buf.seek(0)
-        
+
+        # Convert figure to NumPy array
         image = Image.open(buf)
         image_array = np.array(image)
-        
+
+        # Log image to Weights & Biases
         wandb.log({"Dataset Overview": wandb.Image(image)})
-        
+
         return summary_text, image_array
+
     except Exception as e:
         return f"Error loading data: {str(e)}", None
 
