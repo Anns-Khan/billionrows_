@@ -173,53 +173,65 @@ def explore_dataset():
     try:
         df = pd.read_parquet(parquet_path)
         
-        # Generate dataset summary
         summary = df.describe(include='all').T  
         summary["missing_values"] = df.isnull().sum()
         summary["unique_values"] = df.nunique()
         summary_text = summary.to_markdown()
         
-        # Log dataset summary as text in Weights & Biases
         wandb.log({"Dataset Summary": wandb.Html(summary_text)})
 
-        # Prepare for visualization
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))  
+        fig, axes = plt.subplots(3, 2, figsize=(14, 15))  
         fig.suptitle("Dataset Overview", fontsize=16)
 
-        # Plot data type distribution
+        # Column Count by Data Type
         data_types = df.dtypes.value_counts()
-        sns.barplot(x=data_types.index.astype(str), y=data_types.values, ax=axes[0])
-        axes[0].set_title("Column Count by Data Type")
-        axes[0].set_ylabel("Count")
-        
-        # Plot mean values of numeric columns
+        sns.barplot(x=data_types.index.astype(str), y=data_types.values, ax=axes[0, 0])
+        axes[0, 0].set_title("Column Count by Data Type")
+        axes[0, 0].set_ylabel("Count")
+        axes[0, 0].set_xlabel("Column Type")
+
+        # Mean Values of Numeric Columns
         num_cols = df.select_dtypes(include=['number']).columns
         if len(num_cols) > 0:
             mean_values = df[num_cols].mean()
-            sns.barplot(x=mean_values.index, y=mean_values.values, ax=axes[1])
-            axes[1].set_title("Mean Values of Numeric Columns")
-            axes[1].tick_params(axis='x', rotation=45)
-            
-            # Log mean values to Weights & Biases
+            sns.barplot(x=mean_values.index, y=mean_values.values, ax=axes[0, 1])
+            axes[0, 1].set_title("Mean Values of Numeric Columns")
+            axes[0, 1].set_xlabel("Column Name")
+            axes[0, 1].tick_params(axis='x', rotation=45)
+
             for col, mean_val in mean_values.items():
                 wandb.log({f"Mean Values/{col}": mean_val})
 
-        # Save figure to buffer
+        # Step 1: Correlation Heatmap
+        if len(num_cols) > 0:
+            corr_matrix = df[num_cols].corr()
+            sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", ax=axes[1, 0])
+            axes[1, 0].set_title("Correlation Heatmap")
+        
+        # Step 6: Missing Value Heatmap
+        sns.heatmap(df.isnull(), cmap="viridis", cbar=False, ax=axes[1, 1])
+        axes[1, 1].set_title("Missing Value Heatmap")
+        
+        # Step 3: Pairplots for Feature Relationships
+        sns.pairplot(df[num_cols].sample(500), diag_kind='kde')  # Sampling for performance
+        plt.savefig("pairplot.png")
+        
+        # Step 4: Outlier Detection
+        df[num_cols].plot(kind='box', subplots=True, layout=(2, 3), figsize=(14, 10), ax=axes[2, :])
+        axes[2, 0].set_title("Outlier Detection - Boxplots")
+        
         buf = io.BytesIO()
         plt.tight_layout()
         plt.savefig(buf, format='png', bbox_inches='tight')
         plt.close(fig)
         buf.seek(0)
         
-        # Convert figure to NumPy array
         image = Image.open(buf)
         image_array = np.array(image)
-
-        # Log image to Weights & Biases
+        
         wandb.log({"Dataset Overview": wandb.Image(image)})
-
+        
         return summary_text, image_array
-
     except Exception as e:
         return f"Error loading data: {str(e)}", None
 
