@@ -17,15 +17,17 @@ from PIL import Image
 import numpy as np
 import matplotlib
 import wandb
-# from datasets import load_dataset
+from datasets import load_dataset
 
 # Load dataset once at the start to avoid redundant requests
 # dataset = load_dataset("Chendi/NYC_TAXI_FARE_CLEANED")
 
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 wandb.init(project="billion-row-analysis", name="benchmarking")
-
-
+dataset = load_dataset("AnnsKhan/jan_2024_nyc", split="train")
+parquet_path = "data/raw/jan_2024.parquet"
+if not os.path.exists(parquet_path):
+    dataset.to_pandas().to_parquet(parquet_path)  # Save to disk
 os.environ["MODIN_ENGINE"] = "dask"
 
 # Initialize FastAPI app
@@ -83,7 +85,7 @@ def measure_performance(load_function, *args):
 
 # Data loading functions
 def load_data_python_vectorized():
-    df = pd.read_parquet('data/raw/jan_2024.parquet')
+    df = pd.read_parquet(parquet_path)
     
     # Convert numerical columns to NumPy arrays for vectorized operations
     num_cols = df.select_dtypes(include=['number']).columns
@@ -91,16 +93,16 @@ def load_data_python_vectorized():
     return np_data
 
 def load_data_pandas():
-    return pd.read_parquet('data/raw/jan_2024.parquet')
+    return pd.read_parquet(parquet_path)
 
 def load_data_dask():
-    return dd.read_parquet('data/raw/jan_2024.parquet')
+    return dd.read_parquet(parquet_path)
 
 def load_data_polars():
-    return pl.read_parquet('data/raw/jan_2024.parquet')
+    return pl.read_parquet(parquet_path)
 
 def load_data_duckdb():
-    return duckdb.read_parquet('data/raw/jan_2024.parquet')
+    return duckdb.read_parquet(parquet_path)
 
 # Loaders list
 loaders = [
