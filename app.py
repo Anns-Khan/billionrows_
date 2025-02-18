@@ -197,7 +197,7 @@ def explore_dataset():
         # Plot data type distribution
         data_types = df.dtypes.value_counts()
         sns.barplot(x=data_types.index.astype(str), y=data_types.values, ax=axes[0, 0])
-        axes[0, 0].set_title("Column Count by Data Type")
+        axes[0, 0].set_title("Column Count by Data Type by AnnsKhan")
         axes[0, 0].set_ylabel("Count")
         axes[0, 0].set_xlabel("Column Type")
 
