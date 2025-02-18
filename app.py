@@ -171,7 +171,7 @@ def run_benchmark():
 matplotlib.use("Agg")
 def explore_dataset():
     try:
-        df = pd.read_parquet('data/raw/jan_2024.parquet')
+        df = pd.read_parquet(parquet_path)
         
         # Generate dataset summary
         summary = df.describe(include='all').T  
