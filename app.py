@@ -17,17 +17,17 @@ from PIL import Image
 import numpy as np
 import matplotlib
 import wandb
-#from datasets import load_dataset
+from datasets import load_dataset
 
 # Load dataset once at the start to avoid redundant requests
 # dataset = load_dataset("Chendi/NYC_TAXI_FARE_CLEANED")
 
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 wandb.init(project="billion-row-analysis", name="benchmarking")
-#dataset = load_dataset("AnnsKhan/jan_2024_nyc", split="train")
+dataset = load_dataset("AnnsKhan/jan_2024_nyc", split="train")
 parquet_path = "jan_2024.parquet"
-# if not os.path.exists(parquet_path):
-#     dataset.to_pandas().to_parquet(parquet_path)  # Save to disk
+if not os.path.exists(parquet_path):
+     dataset.to_pandas().to_parquet(parquet_path)  # Save to disk
 os.environ["MODIN_ENGINE"] = "dask"
 
 # Initialize FastAPI app
